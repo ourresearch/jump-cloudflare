@@ -1,6 +1,7 @@
 name = "jump-cloudflare"
-type = "javascript"
+type = "webpack"
 account_id = "a452eddbbe06eb7d02f4879cee70d29c"
 workers_dev = false
 zone_id = "50361729b721510fe92eea1df095c6ab"
 route = "api.unpaywalljournals.org/cache/*"
+webpack_config = "webpack.config.js"
