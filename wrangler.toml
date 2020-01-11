@@ -5,3 +5,6 @@ workers_dev = false
 zone_id = "50361729b721510fe92eea1df095c6ab"
 route = "api.unpaywalljournals.org/cache/*"
 webpack_config = "webpack.config.js"
+kv-namespaces = [
+         { binding = "MY_KV", id = "8b37307ab95e454ba05194ef388fc677" }
+]

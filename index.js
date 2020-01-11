@@ -6,8 +6,9 @@ addEventListener('fetch', event => {
  * @param {Request} request
  */
 async function handleRequest(request) {
-  hi = TEST_VAR
-  return new Response('Hello worker! ' + hi, {
+  let env_var_test = TEST_VAR
+  let kv_test = await MY_KV.get("test_secret");
+  return new Response('Hello worker! ' + env_var_test + kv_test, {
     headers: { 'content-type': 'text/plain' },
   })
 }
