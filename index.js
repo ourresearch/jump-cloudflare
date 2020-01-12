@@ -20,8 +20,7 @@ async function handleEventWithErrorHandling(event) {
     }
 }
 
-function removeTrailingSlash(myString)
-{
+function removeTrailingSlash(myString) {
     return myString.replace(/\/$/, "");
 }
 
@@ -30,40 +29,44 @@ async function handleRequest(request) {
     let kv_test = await MY_KV.get("test_secret")
 
     if (request.method === 'POST') {
-        let isValid = await isValidJwt(request)
-        if (!isValid) {
-            // It is immediately failing here, which is great. The worker doesn't bother hitting your API
-            console.log('is NOT valid')
-            return new Response('Invalid JWT', {status: 403})
-        } else {
-            console.log('is valid')
-
-            let data = await request.json()
-            console.log('data', data)
-            const encodedToken = getJwt(request);
-            let url_base = 'login'
-
-            let api_url = 'https://unpaywall-jump-api.herokuapp.com/' + url_base + '?jwt=' + encodedToken
-            console.log(api_url)
-
-            let api_response = await fetch(api_url, {
-                'method': 'POST',
-                'headers': {'content-type': 'application/json;charset=UTF-8'},
-                'body': JSON.stringify(data)})
-            console.log(api_response)
-            let api_result = await gatherResponse(api_response)
-            console.log(api_result)
-
-            const init = {
-                  headers: {
-                      'content-type': 'application/json;charset=UTF-8',
-                  },
-              }
-            return new Response(JSON.stringify(api_result), init)
-
+        let encodedToken = ''
+        if (!request.url.includes('/login')) {
+            let isValid = await isValidJwt(request)
+            if (!isValid) {
+                // It is immediately failing here, which is great. The worker doesn't bother hitting your API
+                console.log('is NOT valid')
+                return new Response('Invalid JWT', {status: 403})
+            }
+            console.log('jwt is valid')
+            encodedToken = getJwt(request);
         }
-    }
-    else {
+
+        let data = await request.json()
+        console.log('data', data)
+
+        let url_base = 'login'
+
+        let api_url = 'https://unpaywall-jump-api.herokuapp.com/' + url_base + '?jwt=' + encodedToken
+        console.log(api_url)
+
+        let api_response = await fetch(api_url, {
+            'method': 'POST',
+            'headers': {'content-type': 'application/json;charset=UTF-8'},
+            'body': JSON.stringify(data)
+        })
+        console.log(api_response)
+        let api_result = await gatherResponse(api_response)
+        console.log(api_result)
+
+
+        const init = {
+            headers: corsHeaders
+        }
+        init.headers['content-type'] = 'application/json;charset=UTF-8'
+        return new Response(JSON.stringify(api_result), init)
+
+
+    } else {
         // await check_authorization(request)
 
         console.log('after if in respond with in options')
