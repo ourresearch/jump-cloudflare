@@ -18,7 +18,9 @@ module.exports = {
     },
     plugins: [
         new webpack.DefinePlugin({
-            TEST_VAR: JSON.stringify(process.env.TEST_VAR)
+            TEST_VAR: JSON.stringify(process.env.TEST_VAR),
+            SENTRY_PROJECT_ID_VAR: JSON.stringify(process.env.SENTRY_PROJECT_ID_VAR),
+            SENTRY_KEY_VAR: JSON.stringify(process.env.SENTRY_KEY_VAR)
         }),
     ],
 };
