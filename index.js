@@ -27,10 +27,14 @@ function removeTrailingSlash(myString) {
 async function handleRequest(request) {
     let env_var_test = TEST_VAR
     let kv_test = await MY_KV.get("test_secret")
+    let request_url = new URL(request.url)
+    let api_pathname = request_url.pathname.replace('/cache', '')
 
+    console.log('api_pathname', api_pathname)
     if (request.method === 'POST') {
         let encodedToken = ''
-        if (!request.url.includes('/login')) {
+
+        if (api_pathname != '/login') {
             let isValid = await isValidJwt(request)
             if (!isValid) {
                 // It is immediately failing here, which is great. The worker doesn't bother hitting your API
@@ -44,9 +48,7 @@ async function handleRequest(request) {
         let data = await request.json()
         console.log('data', data)
 
-        let url_base = 'login'
-
-        let api_url = 'https://unpaywall-jump-api.herokuapp.com/' + url_base + '?jwt=' + encodedToken
+        let api_url = 'https://unpaywall-jump-api.herokuapp.com' + api_pathname + '?jwt=' + encodedToken
         console.log(api_url)
 
         let api_response = await fetch(api_url, {
@@ -67,28 +69,33 @@ async function handleRequest(request) {
 
 
     } else {
-        // await check_authorization(request)
-
-        console.log('after if in respond with in options')
-
-        const request_url = new URL(request.url)
-        const request_jwt = request_url.searchParams.get('jwt')
-        if (request_jwt == null) {
-            throw new Error('Need jwt')
+        let isValid = await isValidJwt(request)
+        if (!isValid) {
+            // It is immediately failing here, which is great. The worker doesn't bother hitting your API
+            console.log('is NOT valid')
+            return new Response('Invalid JWT', {status: 403})
         }
-        let url_base = ''
+        console.log('jwt is valid')
+
+        let encodedToken = getJwt(request);
+
+        let api_url = 'https://unpaywall-jump-api.herokuapp.com' + api_pathname + '?jwt=' + encodedToken
+        console.log(api_url)
+
+        let api_response = await fetch(api_url, {
+            'method': 'GET',
+            'headers': {'content-type': 'application/json;charset=UTF-8'}
+        })
+        console.log(api_response)
+        let api_result = await gatherResponse(api_response)
+        console.log(api_result)
 
         const init = {
-            headers: request.headers
+            headers: corsHeaders
         }
+        init.headers['content-type'] = 'application/json;charset=UTF-8'
+        return new Response(JSON.stringify(api_result), init)
 
-        let api_response = await fetch(api_url, init)
-        console.log(api_response)
-        let api_result = gatherResponse(api_response)
-
-        return new Response(api_result, {
-            headers: {'content-type': 'text/json'},
-        })
     }
 }
 
