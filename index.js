@@ -11,7 +11,7 @@ async function handleEventWithErrorHandling(event) {
             const result = await handleOptions(event.request)
             return result
         } else {
-            const result = await handleRequest(event.request)
+            const result = await handleEvent(event)
             return result
         }
     } catch (e) {
@@ -24,13 +24,14 @@ function removeTrailingSlash(myString) {
     return myString.replace(/\/$/, "");
 }
 
-async function handleRequest(request) {
+async function handleEvent(event) {
+    let request = event.request
     let env_var_test = TEST_VAR
     let kv_test = await MY_KV.get("test_secret")
     let request_url = new URL(request.url)
     let api_pathname = request_url.pathname.replace('/cache', '')
 
-    console.log('api_pathname', api_pathname)
+    // console.log('api_pathname', api_pathname)
     if (request.method === 'POST') {
         let encodedToken = ''
 
@@ -76,29 +77,93 @@ async function handleRequest(request) {
             return new Response('Invalid JWT', {status: 403})
         }
         console.log('jwt is valid')
+        //
+        // let encodedToken = getJwt(request);
+        //
+        // let api_url = 'https://unpaywall-jump-api.herokuapp.com' + api_pathname + '?jwt=' + encodedToken
+        // console.log(api_url)
+        //
+        //
+        // let api_response = await fetch(api_url, {
+        //     'method': 'GET',
+        //     'headers': {'content-type': 'application/json;charset=UTF-8'}
+        // })
+        //
+        // console.log(api_response)
+        // let api_result = await gatherResponse(api_response)
+        // console.log(api_result)
+        //
+        // const init = {
+        //     headers: corsHeaders
+        // }
+        // init.headers['content-type'] = 'application/json;charset=UTF-8'
+        // return new Response(JSON.stringify(api_result), init)
 
-        let encodedToken = getJwt(request);
-
-        let api_url = 'https://unpaywall-jump-api.herokuapp.com' + api_pathname + '?jwt=' + encodedToken
-        console.log(api_url)
-
-        let api_response = await fetch(api_url, {
-            'method': 'GET',
-            'headers': {'content-type': 'application/json;charset=UTF-8'}
-        })
-        console.log(api_response)
-        let api_result = await gatherResponse(api_response)
-        console.log(api_result)
-
-        const init = {
-            headers: corsHeaders
-        }
-        init.headers['content-type'] = 'application/json;charset=UTF-8'
-        return new Response(JSON.stringify(api_result), init)
-
+        let get_response = await handleGetEvent(event)
+        return get_response
     }
 }
 
+
+// based on https://developers.cloudflare.com/workers/templates/pages/cache_api/
+async function handleGetEvent(event) {
+    let request = event.request
+    let encodedToken = getJwt(request)
+    let request_url = new URL(request.url)
+    let api_pathname = request_url.pathname.replace('/cache', '')
+    let api_url = 'https://unpaywall-jump-api.herokuapp.com' + api_pathname + '?jwt=' + encodedToken
+    console.log(api_url)
+    let cacheUrl = new URL(api_url)
+
+    let cacheKey = new Request(cacheUrl, request)
+    // let cacheKey = cacheUrl
+    console.log("cacheKey", cacheKey)
+
+    let cache = caches.default
+    // Get this request from this zone's cache
+    let response = await cache.match(cacheKey)
+    if (!response) {
+        console.log("no match in cache")
+        //if not in cache, grab it from the origin
+        response = await fetch(request)
+        // must use Response constructor to inherit all of response's fields
+        response = new Response(response.body, response)
+        // Cache API respects Cache-Control headers, so by setting max-age to 10
+        // the response will only live in cache for max of 7*24*60*60=604800 seconds
+        response.headers.append('Cache-Control', 'max-age=604800')
+        // store the fetched response as cacheKey
+        // use waitUntil so computational expensive tasks don't delay the response
+        event.waitUntil(cache.put(cacheKey, response.clone()))
+    } else {
+        console.log("match in cache")
+    }
+    return response
+}
+
+
+// based on https://developers.cloudflare.com/workers/templates/pages/cache_api/
+async function handlePostEvent(event) {
+    let request = event.request
+    let body = await request.clone().text()
+    let hash = await sha256(body)
+    let cacheUrl = new URL(request.url)
+    // get/store the URL in cache by prepending the body's hash
+    cacheUrl.pathname = '/posts' + cacheUrl.pathname + hash
+    // Convert to a GET to be able to cache
+    let cacheKey = new Request(cacheUrl, {
+        headers: request.headers,
+        method: 'GET',
+    })
+    let cache = caches.default
+    //try to find the cache key in the cache
+    let response = await cache.match(cacheKey)
+    // otherwise, fetch response to POST request from origin
+    if (!response) {
+        response = await fetch(request)
+        event.waitUntil(cache.put(cacheKey, response))
+    }
+    return response
+}
 
 async function check_authorization(request) {
     const request_url = new URL(request.url)
@@ -203,4 +268,18 @@ async function isValidJwt(request) {
     const token = decodeJwt(encodedToken);
     // console.log(token)
     return true
+}
+
+
+// from https://developers.cloudflare.com/workers/templates/pages/cache_api/
+async function sha256(message) {
+    // encode as UTF-8
+    const msgBuffer = new TextEncoder().encode(message)
+    // hash the message
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
+    // convert ArrayBuffer to Array
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    // convert bytes to hex string
+    const hashHex = hashArray.map(b => ('00' + b.toString(16)).slice(-2)).join('')
+    return hashHex
 }
