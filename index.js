@@ -20,6 +20,10 @@ async function handleEventWithErrorHandling(event) {
     }
 }
 
+function removeTrailingSlash(myString)
+{
+    return myString.replace(/\/$/, "");
+}
 
 async function handleRequest(request) {
     let env_var_test = TEST_VAR
@@ -33,15 +37,31 @@ async function handleRequest(request) {
             return new Response('Invalid JWT', {status: 403})
         } else {
             console.log('is valid')
+
+            let data = await request.json()
+            console.log('data', data)
+            const encodedToken = getJwt(request);
+            let url_base = 'login'
+
+            let api_url = 'https://unpaywall-jump-api.herokuapp.com/' + url_base + '?jwt=' + encodedToken
+            console.log(api_url)
+
+            let api_response = await fetch(api_url, {
+                'method': 'POST',
+                'headers': {'content-type': 'application/json;charset=UTF-8'},
+                'body': JSON.stringify(data)})
+            console.log(api_response)
+            let api_result = await gatherResponse(api_response)
+            console.log(api_result)
+
+            const init = {
+                  headers: {
+                      'content-type': 'application/json;charset=UTF-8',
+                  },
+              }
+            return new Response(JSON.stringify(api_result), init)
+
         }
-
-        // console.log('Got request', request)
-        // const response = await fetch(request)
-        // console.log('Got response', response)
-        // return response
-        const encodedToken = getJwt(request);
-
-        return new Response("progress!" + encodedToken)
     }
     else {
         // await check_authorization(request)
@@ -53,9 +73,7 @@ async function handleRequest(request) {
         if (request_jwt == null) {
             throw new Error('Need jwt')
         }
-        // remove trailing /
         let url_base = ''
-        let api_url = 'https://unpaywall-jump-api.herokuapp.com/' + url_base + '?jwt=' + request_jwt
 
         const init = {
             headers: request.headers
@@ -79,7 +97,7 @@ async function check_authorization(request) {
         throw new Error('Need secret key')
     }
     // remove trailing /
-    let secret_check_url = 'https://unpaywall-jump-api.herokuapp.com/super?secret=' + request_secret.replace('/', '')
+    let secret_check_url = 'https://unpaywall-jump-api.herokuapp.com/super?secret=' + removeTrailingSlash(request_secret)
     let secret_check_response = await fetch(secret_check_url)
     console.log(secret_check_response)
     if (secret_check_response.status != 200) {
@@ -127,10 +145,7 @@ async function handleOptions(request) {
     }
 }
 
-// We support the GET, POST, HEAD, and OPTIONS methods from any origin,
-// and accept the Content-Type header on requests. These headers must be
-// present on all responses to all CORS requests. In practice, this means
-// all responses to OPTIONS requests.
+
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
@@ -139,7 +154,7 @@ const corsHeaders = {
     'Access-Control-Allow-Credentials': 'true'
 }
 
-// from https://liftcodeplay.com/2018/10/01/validating-auth0-jwts-on-the-edge-with-a-cloudflare-worker/
+// started from https://liftcodeplay.com/2018/10/01/validating-auth0-jwts-on-the-edge-with-a-cloudflare-worker/
 function getJwt(request) {
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || authHeader.substring(0, 6) !== 'Bearer') {
@@ -148,20 +163,20 @@ function getJwt(request) {
         if (request_jwt == null) {
             return null
         } else {
-            return request_jwt
+            return removeTrailingSlash(request_jwt)
         }
     } else {
         return authHeader.substring(6).trim()
     }
 }
 
-// from https://liftcodeplay.com/2018/10/01/validating-auth0-jwts-on-the-edge-with-a-cloudflare-worker/
+// started from https://liftcodeplay.com/2018/10/01/validating-auth0-jwts-on-the-edge-with-a-cloudflare-worker/
 function decodeJwt(token) {
     const parts = token.split('.');
     const header = JSON.parse(atob(parts[0]));
     const payload = JSON.parse(atob(parts[1]));
     const signature = atob(parts[2].replace(/_/g, '/').replace(/-/g, '+'));
-    console.log(header)
+    // console.log(header)
     return {
         header: header,
         payload: payload,
@@ -176,6 +191,6 @@ async function isValidJwt(request) {
         return false
     }
     const token = decodeJwt(encodedToken);
-    console.log(token)
+    // console.log(token)
     return true
 }
