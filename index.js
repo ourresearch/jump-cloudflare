@@ -103,9 +103,9 @@ async function handleGetEvent(event) {
         console.log('this is an account call', package_id)
         cache_url_fragment = '/package/' + package_id
         getAndCache(cache_url_fragment, base_event, post_hash)
-    } else if (cache_url_fragment === '/package') {
+    } else if (cache_url_fragment.startsWith('/package')) {
         let scenario_id = data.scenarios[0]['id']
-        console.log('this is an package call', package_id)
+        console.log('this is a package call', scenario_id)
         cache_url_fragment = '/scenario/' + scenario_id
         getAndCache(cache_url_fragment, base_event, post_hash)
         getAndCache(cache_url_fragment + '/slider', base_event, post_hash)
