@@ -94,7 +94,26 @@ async function handleGetEvent(event) {
     let cache_url_fragment = request_url.pathname.replace('/cache', '')
     let base_event = event
     let post_hash = null
-    return await getAndCache(cache_url_fragment, base_event, post_hash)
+
+    let response = await getAndCache(cache_url_fragment, base_event, post_hash)
+
+    let data = await response.clone().json()
+    if (cache_url_fragment === '/account') {
+        let package_id = data.packages[0]['id']
+        console.log('this is an account call', package_id)
+        cache_url_fragment = '/package/' + package_id
+        getAndCache(cache_url_fragment, base_event, post_hash)
+    } else if (cache_url_fragment === '/package') {
+        let scenario_id = data.scenarios[0]['id']
+        console.log('this is an package call', package_id)
+        cache_url_fragment = '/scenario/' + scenario_id
+        getAndCache(cache_url_fragment, base_event, post_hash)
+        getAndCache(cache_url_fragment + '/slider', base_event, post_hash)
+        getAndCache(cache_url_fragment + '/apc', base_event, post_hash)
+        getAndCache(cache_url_fragment + '/table', base_event, post_hash)
+    }
+
+    return response
 }
 
 
