@@ -1,5 +1,6 @@
 import {log} from './sentry'
 import {calculate} from './jump'
+import {getAndCache} from './mycache'
 import {isValidJwt} from './jwt'
 import {getJwt} from './jwt'
 import {decodeJwt} from './jwt'
@@ -81,6 +82,7 @@ async function handleEvent(event) {
             console.log('is NOT valid')
             return new Response('Invalid JWT', {status: 403})
         }
+
         return await handleGetEvent(event)
     }
 }
@@ -88,47 +90,11 @@ async function handleEvent(event) {
 
 // based on https://developers.cloudflare.com/workers/templates/pages/cache_api/
 async function handleGetEvent(event) {
-    let request = event.request
-    let encodedToken = getJwt(request)
-    let request_url = new URL(request.url)
-    let api_pathname = request_url
-    api_pathname = api_pathname.pathname.replace('/cache', '')
-    let api_url = 'https://unpaywall-jump-api.herokuapp.com' + api_pathname + '?jwt=' + encodedToken
-    let apiUrl = new URL(api_url)
-    let cacheKey = new Request(apiUrl, request)
-    let apiRequest = new Request(apiUrl, request)
-
-    let cache = caches.default
-    // Get this request from this zone's cache
-    let response = await cache.match(cacheKey)
-    if (!response) {
-        console.log("no match in cache")
-
-        //if not in cache, grab it from the origin
-        response = await fetch(apiRequest)
-
-        // must use Response constructor to inherit all of response's fields
-        response = new Response(response.body, response)
-
-        // Cache API respects Cache-Control headers, so by setting max-age to 10
-        // the response will only live in cache for max of 7*24*60*60=604800 seconds
-
-        response.headers.append('Cache-Control', 'max-age=604800')
-
-        // store the fetched response as cacheKey
-        // use waitUntil so computational expensive tasks don't delay the response
-
-        if (response.status == 200) {
-            console.log('status 200, storing in cache')
-            event.waitUntil(cache.put(cacheKey, response.clone()))
-        } else {
-            console.log('status != 200, deleting from cache')
-            event.waitUntil(cache.delete(cacheKey, response.clone()))
-        }
-    } else {
-        console.log("match in cache")
-    }
-    return response
+    let request_url = new URL(event.request.url)
+    let cache_url_fragment = request_url.pathname.replace('/cache', '')
+    let base_event = event
+    let post_hash = null
+    return await getAndCache(cache_url_fragment, base_event, post_hash)
 }
 
 
