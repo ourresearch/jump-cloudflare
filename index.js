@@ -110,14 +110,13 @@ async function handleGetEvent(event) {
     let request = event.request
     let encodedToken = getJwt(request)
     let request_url = new URL(request.url)
-    let api_pathname = request_url.pathname.replace('/cache', '')
+    let api_pathname = request_url
+    api_pathname = api_pathname.pathname.replace('/cache', '')
     let api_url = 'https://unpaywall-jump-api.herokuapp.com' + api_pathname + '?jwt=' + encodedToken
     console.log(api_url)
-    let cacheUrl = new URL(api_url)
-
-    let cacheKey = new Request(cacheUrl, request)
-    // let cacheKey = cacheUrl
-    console.log("cacheKey", cacheKey)
+    let apiUrl = new URL(api_url)
+    let cacheKey = new Request(apiUrl, request)
+    let apiRequest = new Request(apiUrl, request)
 
     let cache = caches.default
     // Get this request from this zone's cache
@@ -125,7 +124,7 @@ async function handleGetEvent(event) {
     if (!response) {
         console.log("no match in cache")
         //if not in cache, grab it from the origin
-        response = await fetch(request)
+        response = await fetch(apiRequest)
         // must use Response constructor to inherit all of response's fields
         response = new Response(response.body, response)
         // Cache API respects Cache-Control headers, so by setting max-age to 10
