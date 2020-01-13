@@ -1,6 +1,15 @@
 import {log} from './sentry'
+import {calculate} from './jump'
+import {isValidJwt} from './jwt'
+import {getJwt} from './jwt'
+import {decodeJwt} from './jwt'
+import {sha256} from './util'
+import {corsHeaders} from './util'
+import {removeTrailingSlash} from './util'
+import {gatherResponse} from './util'
 
 addEventListener('fetch', event => {
+    calculate()
     event.respondWith(handleEventWithErrorHandling(event))
 })
 
@@ -18,10 +27,6 @@ async function handleEventWithErrorHandling(event) {
         event.waitUntil(log(e, event.request))
         return new Response(e.message || 'An error occurred!', {status: e.statusCode || 500})
     }
-}
-
-function removeTrailingSlash(myString) {
-    return myString.replace(/\/$/, "");
 }
 
 async function handleEvent(event) {
@@ -76,31 +81,7 @@ async function handleEvent(event) {
             console.log('is NOT valid')
             return new Response('Invalid JWT', {status: 403})
         }
-        console.log('jwt is valid')
-        //
-        // let encodedToken = getJwt(request);
-        //
-        // let api_url = 'https://unpaywall-jump-api.herokuapp.com' + api_pathname + '?jwt=' + encodedToken
-        // console.log(api_url)
-        //
-        //
-        // let api_response = await fetch(api_url, {
-        //     'method': 'GET',
-        //     'headers': {'content-type': 'application/json;charset=UTF-8'}
-        // })
-        //
-        // console.log(api_response)
-        // let api_result = await gatherResponse(api_response)
-        // console.log(api_result)
-        //
-        // const init = {
-        //     headers: corsHeaders
-        // }
-        // init.headers['content-type'] = 'application/json;charset=UTF-8'
-        // return new Response(JSON.stringify(api_result), init)
-
-        let get_response = await handleGetEvent(event)
-        return get_response
+        return await handleGetEvent(event)
     }
 }
 
@@ -113,7 +94,6 @@ async function handleGetEvent(event) {
     let api_pathname = request_url
     api_pathname = api_pathname.pathname.replace('/cache', '')
     let api_url = 'https://unpaywall-jump-api.herokuapp.com' + api_pathname + '?jwt=' + encodedToken
-    console.log(api_url)
     let apiUrl = new URL(api_url)
     let cacheKey = new Request(apiUrl, request)
     let apiRequest = new Request(apiUrl, request)
@@ -123,16 +103,28 @@ async function handleGetEvent(event) {
     let response = await cache.match(cacheKey)
     if (!response) {
         console.log("no match in cache")
+
         //if not in cache, grab it from the origin
         response = await fetch(apiRequest)
+
         // must use Response constructor to inherit all of response's fields
         response = new Response(response.body, response)
+
         // Cache API respects Cache-Control headers, so by setting max-age to 10
         // the response will only live in cache for max of 7*24*60*60=604800 seconds
+
         response.headers.append('Cache-Control', 'max-age=604800')
+
         // store the fetched response as cacheKey
         // use waitUntil so computational expensive tasks don't delay the response
-        event.waitUntil(cache.put(cacheKey, response.clone()))
+
+        if (response.status == 200) {
+            console.log('status 200, storing in cache')
+            event.waitUntil(cache.put(cacheKey, response.clone()))
+        } else {
+            console.log('status != 200, deleting from cache')
+            event.waitUntil(cache.delete(cacheKey, response.clone()))
+        }
     } else {
         console.log("match in cache")
     }
@@ -146,51 +138,26 @@ async function handlePostEvent(event) {
     let body = await request.clone().text()
     let hash = await sha256(body)
     let cacheUrl = new URL(request.url)
+    let cache = caches.default
+
     // get/store the URL in cache by prepending the body's hash
     cacheUrl.pathname = '/posts' + cacheUrl.pathname + hash
+
     // Convert to a GET to be able to cache
     let cacheKey = new Request(cacheUrl, {
         headers: request.headers,
         method: 'GET',
     })
-    let cache = caches.default
+
     //try to find the cache key in the cache
     let response = await cache.match(cacheKey)
+
     // otherwise, fetch response to POST request from origin
     if (!response) {
         response = await fetch(request)
         event.waitUntil(cache.put(cacheKey, response))
     }
     return response
-}
-
-async function check_authorization(request) {
-    const request_url = new URL(request.url)
-    const request_secret = request_url.searchParams.get('secret')
-    if (request_secret == null) {
-        throw new Error('Need secret key')
-    }
-    // remove trailing /
-    let secret_check_url = 'https://unpaywall-jump-api.herokuapp.com/super?secret=' + removeTrailingSlash(request_secret)
-    let secret_check_response = await fetch(secret_check_url)
-    console.log(secret_check_response)
-    if (secret_check_response.status != 200) {
-        throw new Error('Wrong secret key')
-    }
-}
-
-async function gatherResponse(response) {
-    const {headers} = response
-    const contentType = headers.get('content-type')
-    if (contentType.includes('application/json')) {
-        return await response.json()
-    } else if (contentType.includes('application/text')) {
-        return await response.text()
-    } else if (contentType.includes('text/html')) {
-        return await response.text()
-    } else {
-        return await response.text()
-    }
 }
 
 
@@ -219,66 +186,3 @@ async function handleOptions(request) {
     }
 }
 
-
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control',
-    'Access-Control-Expose-Headers': 'Authorization, Cache-Control',
-    'Access-Control-Allow-Credentials': 'true'
-}
-
-// started from https://liftcodeplay.com/2018/10/01/validating-auth0-jwts-on-the-edge-with-a-cloudflare-worker/
-function getJwt(request) {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader || authHeader.substring(0, 6) !== 'Bearer') {
-        const request_url = new URL(request.url)
-        const request_jwt = request_url.searchParams.get('jwt')
-        if (request_jwt == null) {
-            return null
-        } else {
-            return removeTrailingSlash(request_jwt)
-        }
-    } else {
-        return authHeader.substring(6).trim()
-    }
-}
-
-// started from https://liftcodeplay.com/2018/10/01/validating-auth0-jwts-on-the-edge-with-a-cloudflare-worker/
-function decodeJwt(token) {
-    const parts = token.split('.');
-    const header = JSON.parse(atob(parts[0]));
-    const payload = JSON.parse(atob(parts[1]));
-    const signature = atob(parts[2].replace(/_/g, '/').replace(/-/g, '+'));
-    // console.log(header)
-    return {
-        header: header,
-        payload: payload,
-        signature: signature,
-        raw: {header: parts[0], payload: parts[1], signature: parts[2]}
-    }
-}
-
-async function isValidJwt(request) {
-    const encodedToken = getJwt(request);
-    if (encodedToken === null) {
-        return false
-    }
-    const token = decodeJwt(encodedToken);
-    // console.log(token)
-    return true
-}
-
-
-// from https://developers.cloudflare.com/workers/templates/pages/cache_api/
-async function sha256(message) {
-    // encode as UTF-8
-    const msgBuffer = new TextEncoder().encode(message)
-    // hash the message
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
-    // convert ArrayBuffer to Array
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    // convert bytes to hex string
-    const hashHex = hashArray.map(b => ('00' + b.toString(16)).slice(-2)).join('')
-    return hashHex
-}
