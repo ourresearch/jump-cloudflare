@@ -1,8 +1,8 @@
 export const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control',
-    'Access-Control-Expose-Headers': 'Authorization, Cache-Control',
+    'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Cache-Tag',
+    'Access-Control-Expose-Headers': 'Authorization, Cache-Control, Cache-Tag',
     'Access-Control-Allow-Credentials': 'true'
 }
 

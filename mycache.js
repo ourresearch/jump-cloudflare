@@ -85,32 +85,38 @@ export async function modifyBody(response, specific_id) {
 }
 
 
-export async function cachePut(key, response_orig, event) {
+export async function cachePut(key, response_clone, event) {
     var cache = caches.default
-
-    event.waitUntil(postLog('here at top'))
     //
-    // console.log("key", key)
-    // console.log("response_orig", response_orig)
-    // var response_clone = await response_orig
-    // console.log("response_clone", response_clone)
-    //
-    await cache.put(key, response_orig)
-    return response_orig
+    // event.waitUntil(postLog('here at top'))
     //
     // var newResponseHeaders = new Headers(response_clone.headers)
     // newResponseHeaders.set('Cache-Tag', 'cloudflare_workers')
     // newResponseHeaders.set('Cache-Control', 'max-age=604800')
     //
-    // var response_body = gatherResponse(response_clone)
+    // var response_body = gatherResponse(response_clone.clone())
     //
     // var new_response = new Response(response_body, {
     //     status: response_clone.status,
     //     statusText: response_clone.statusText,
-    //     headers: response_clone
+    //     headers: newResponseHeaders
     //     })
     //
     // event.waitUntil(postLog('after making response'))
+    //
+    // var waited_response = await new Response(response_body)
+    //
+    var response = new Response(response_clone.body, response_clone)
+    var tags = ['cloudflare_workers']
+    response.headers.set('Cache-Tag', tags.join(','))
+    response.headers.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Cache-Tag')
+    response.headers.set('Access-Control-Expose-Headers', 'Authorization, Cache-Control, Cache-Tag')
+
+    await cache.put(key, response.clone())
+    return response
+
+    // await cache.put(key, response_clone)
+    // return new_response
 
     // if (new_response.status == 200) {
     //     event.waitUntil(postLog('status == 200, saving to cache'))
