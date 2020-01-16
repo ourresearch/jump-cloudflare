@@ -15,6 +15,14 @@ export async function getAccount(event) {
 
     // await cache.delete(api_url) // uncomment to test
 
+
+    var cache_response = await cache.match(api_url_demo)
+    if (cache_response) {
+        return cache_response
+    }
+    specific_response = await fetch(api_url)
+    return specific_response
+
     // specific_response = await cache.match(api_url)
     // if (specific_response && specific_response.ok) {
     //     event.waitUntil(postLog("found directly in cache " + specific_response.ok))
@@ -73,14 +81,14 @@ export async function getAccount(event) {
 export async function modifyBody(response, specific_id) {
     var old_body_text = await response.clone().text()
     old_body_text = old_body_text.replace(/"_timing": ([^\]]).*?]/g, '"_timing": "CACHED"');
-    old_body_text = old_body_text.replace(/"demo-package-[a-zA-Z0-9]+"/g, '"demo-package-'+specific_id+'"');
-    old_body_text = old_body_text.replace(/"demo-scenario-[a-zA-Z0-9]+"/g, '"demo-scenario-'+specific_id+'"');
+    old_body_text = old_body_text.replace(/"demo-package-[a-zA-Z0-9]+"/g, '"demo-package-' + specific_id + '"');
+    old_body_text = old_body_text.replace(/"demo-scenario-[a-zA-Z0-9]+"/g, '"demo-scenario-' + specific_id + '"');
 
     var modified_response = new Response(old_body_text, {
         status: response.status,
         statusText: response.statusText,
         headers: response.headers
-        })
+    })
 
     return modified_response
 }

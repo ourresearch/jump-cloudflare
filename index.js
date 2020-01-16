@@ -23,6 +23,8 @@ async function handleEventWithErrorHandling(event) {
             return handleOptions(event)
         } else if (event.request.method === 'GET') {
             return handleGetEvent(event)
+        } else if (event.request.method === 'POST') {
+            return handlePostEvent(event)
         }
     } catch (e) {
         event.waitUntil(postLog("**ERROR**" + e.message))
@@ -36,6 +38,10 @@ async function handleEventWithErrorHandling(event) {
 async function handleGetEvent(event) {
     let request_url = new URL(event.request.url)
     let cache_url_fragment = request_url.pathname.replace('/cache', '')
+    let isValid = await isValidJwt(event.request)
+    if (!isValid) {
+        return new Response('Invalid JWT', {status: 403})
+    }
 
     if (cache_url_fragment === '/account') {
         event.waitUntil(postLog("called with /account"))
@@ -44,8 +50,53 @@ async function handleGetEvent(event) {
         event.waitUntil(postLog("called with /purge"))
         var result = await purgeCache(['cloudflare_workers'])
         return new Response("purge cache status: " + result, {status: 200})
+    } else {
+        let encodedToken = getJwt(event.request)
+        let api_url = 'https://unpaywall-jump-api.herokuapp.com'
+            + cache_url_fragment
+            + '?jwt=' + encodedToken
+        return fetch(api_url)
     }
 }
+
+
+async function handlePostEvent(event) {
+    let request_url = new URL(event.request.url)
+    let cache_url_fragment = request_url.pathname.replace('/cache', '')
+
+    if (cache_url_fragment != '/login') {
+        let isValid = await isValidJwt(request)
+        if (!isValid) {
+            return new Response('Invalid JWT', {status: 403})
+        }
+    }
+
+    let data = await request.json()
+    let encodedToken = getJwt(event.request)
+    let api_url = 'https://unpaywall-jump-api.herokuapp.com'
+        + cache_url_fragment
+        + '?jwt=' + encodedToken
+
+    console.log('data', data)
+    console.log(api_url)
+
+    let api_response = await fetch(api_url, {
+        'method': 'POST',
+        'headers': {'content-type': 'application/json;charset=UTF-8'},
+        'body': JSON.stringify(data)
+    })
+
+    console.log(api_response)
+    let api_result = await gatherResponse(api_response)
+    console.log(api_result)
+
+    const init = {
+        headers: corsHeaders
+    }
+    init.headers['content-type'] = 'application/json;charset=UTF-8'
+    return new Response(JSON.stringify(api_result), init)
+}
+
 
 async function handleOptions(event) {
     var request = event.request
