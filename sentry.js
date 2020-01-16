@@ -43,7 +43,7 @@ const RETRIES = 5
 //   })
 // })
 
-export async function log(err, request) {
+export async function errorLog(err, request) {
   const body = JSON.stringify(toSentryEvent(err, request))
 
   for (let i = 0; i <= RETRIES; i++) {

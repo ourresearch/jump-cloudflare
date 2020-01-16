@@ -1,5 +1,3 @@
-
-
 export const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
@@ -41,3 +39,35 @@ export async function sha256(message) {
     const hashHex = hashArray.map(b => ('00' + b.toString(16)).slice(-2)).join('')
     return hashHex
 }
+
+
+export function postLog(message) {
+    console.log('in postLog sending ', message)
+
+    return fetch('https://api.logflare.app/logs', {
+        method: 'POST',
+        headers: {
+            "X-API-KEY": LOGFLARE_API_KEY_VAR,
+            "Content-Type": "application/json",
+            "User-Agent": `Cloudflare Worker`,
+        },
+        body: JSON.stringify({source: LOGFLARE_SOURCE_KEY_VAR, log_entry: message}),
+    })
+}
+
+export async function purgeCache(tags) {
+    let response = await fetch(
+        `https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache`,
+        {
+            method: "POST",
+            headers: {
+                "X-Auth-Email": "heather@ourresearch.org",
+                "X-Auth-Key": `${CLOUDFLARE_GLOBAL_API}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({"tags": tags})
+        }
+    );
+    let data = await response.json();
+    return data.success;
+};

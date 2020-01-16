@@ -1,7 +1,7 @@
 import {removeTrailingSlash} from './util'
 
 export async function calculate() {
-    console.log('hi heather')
+    console.log('in calculate')
     return
 }
 

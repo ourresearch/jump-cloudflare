@@ -20,7 +20,11 @@ module.exports = {
         new webpack.DefinePlugin({
             TEST_VAR: JSON.stringify(process.env.TEST_VAR),
             SENTRY_PROJECT_ID_VAR: JSON.stringify(process.env.SENTRY_PROJECT_ID_VAR),
-            SENTRY_KEY_VAR: JSON.stringify(process.env.SENTRY_KEY_VAR)
+            SENTRY_KEY_VAR: JSON.stringify(process.env.SENTRY_KEY_VAR),
+            CLOUDFLARE_GLOBAL_API: JSON.stringify(process.env.CLOUDFLARE_GLOBAL_API),
+            CLOUDFLARE_ZONE_ID: JSON.stringify(process.env.CLOUDFLARE_ZONE_ID),
+            LOGFLARE_API_KEY_VAR: JSON.stringify(process.env.LOGFLARE_API_KEY_VAR),
+            LOGFLARE_SOURCE_KEY_VAR: JSON.stringify(process.env.LOGFLARE_SOURCE_KEY_VAR)
         }),
     ],
 };

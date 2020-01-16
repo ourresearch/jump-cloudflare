@@ -37,7 +37,5 @@ export async function isValidJwt(request) {
     if (encodedToken === null) {
         return false
     }
-    const token = decodeJwt(encodedToken);
-    // console.log(token)
     return true
 }
