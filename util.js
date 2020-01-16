@@ -56,9 +56,7 @@ export function postLog(message) {
 }
 
 export async function purgeCache(tags) {
-    let response = await fetch(
-        `https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache`,
-        {
+    var init = {
             method: "POST",
             headers: {
                 "X-Auth-Email": "heather@ourresearch.org",
@@ -66,8 +64,14 @@ export async function purgeCache(tags) {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({"tags": tags})
-        }
-    );
+        };
+
+    var url = `https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache`
+    console.log(init)
+    console.log(url)
+    let response = await fetch(url, init)
+    console.log(response)
     let data = await response.json();
+    console.log(data)
     return data.success;
 };

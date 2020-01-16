@@ -43,7 +43,7 @@ async function handleGetEvent(event) {
     } else if (cache_url_fragment === '/purge') {
         event.waitUntil(postLog("called with /purge"))
         var result = await purgeCache(['cloudflare_workers'])
-        return new Response("purge cache status:" + result, {status: 200})
+        return new Response("purge cache status: " + result, {status: 200})
     }
 }
 

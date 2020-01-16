@@ -43,20 +43,20 @@ export async function getAccount(event) {
     // }
 
 
-    await cache.delete(api_url_demo)
+    // await cache.delete(api_url_demo)
 
     // event.waitUntil(postLog("doing live api get"))
 
-    specific_response = await fetch(api_url)
+    // specific_response = await fetch(api_url)
 
     // event.waitUntil(postLog("saving as specific"))
     // await cachePut(api_url, specific_response, event)
 
-    demo_response = await modifyBody(specific_response, "DEMO")
+    // demo_response = await modifyBody(specific_response, "DEMO")
 
 
     // event.waitUntil(postLog("saving as demo"))
-    await cachePut(api_url_demo, demo_response.clone(), event)
+    // await cachePut(api_url_demo, demo_response.clone(), event)
 
     // await cache.put(api_url_demo, demo_response.clone())
 
@@ -64,6 +64,7 @@ export async function getAccount(event) {
     if (cache_response) {
         return cache_response
     }
+    specific_response = await fetch(api_url)
     return specific_response
 
 }
@@ -86,47 +87,18 @@ export async function modifyBody(response, specific_id) {
 
 
 export async function cachePut(key, response_clone, event) {
+    if (response_clone.status != 200) {
+        event.waitUntil(cache.delete(key))
+        return response_clone
+    }
+
     var cache = caches.default
-    //
-    // event.waitUntil(postLog('here at top'))
-    //
-    // var newResponseHeaders = new Headers(response_clone.headers)
-    // newResponseHeaders.set('Cache-Tag', 'cloudflare_workers')
-    // newResponseHeaders.set('Cache-Control', 'max-age=604800')
-    //
-    // var response_body = gatherResponse(response_clone.clone())
-    //
-    // var new_response = new Response(response_body, {
-    //     status: response_clone.status,
-    //     statusText: response_clone.statusText,
-    //     headers: newResponseHeaders
-    //     })
-    //
-    // event.waitUntil(postLog('after making response'))
-    //
-    // var waited_response = await new Response(response_body)
-    //
     var response = new Response(response_clone.body, response_clone)
     var tags = ['cloudflare_workers']
     response.headers.set('Cache-Tag', tags.join(','))
     response.headers.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Cache-Tag')
     response.headers.set('Access-Control-Expose-Headers', 'Authorization, Cache-Control, Cache-Tag')
-
+    response.headers.set('Cache-Control', 'max-age=604800')
     await cache.put(key, response.clone())
     return response
-
-    // await cache.put(key, response_clone)
-    // return new_response
-
-    // if (new_response.status == 200) {
-    //     event.waitUntil(postLog('status == 200, saving to cache'))
-    //     event.waitUntil(postLog(key))
-    //     await cache.put(key, new_response.clone())
-    //     event.waitUntil(postLog('done with cache.put'))
-    // } else {
-    //     event.waitUntil(postLog('status != 200, deleting from cache'))
-    //     event.waitUntil(cache.delete(key))
-    // }
-    // await cache.put(key, response_clone.clone())
-    // return response_clone
 }
