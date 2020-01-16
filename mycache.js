@@ -13,11 +13,12 @@ export async function getAccount(event) {
     var demo_response
 
     var api_url = 'https://unpaywall-jump-api.herokuapp.com/account?jwt=' + encodedToken
-    var api_url_demo = 'https://unpaywall-jump-api.herokuapp.com/account?jwt=DEMO'
+    var specific_cache_key = 'http://example.com/account/' + account_id
+    var demo_cache_key = 'http://example.com/account/DEMO'
 
     // await cache.delete(api_url) // uncomment to test
 
-    specific_response = await cache.match(api_url)
+    specific_response = await cache.match(specific_cache_key)
     if (specific_response && specific_response.ok) {
         specific_response = modifyBody(specific_response.clone())
         event.waitUntil(postLog("found directly in cache " + specific_response.ok))
@@ -26,14 +27,14 @@ export async function getAccount(event) {
     event.waitUntil(postLog("NOT found directly in cache"))
 
     if (is_demo) {
-        demo_response = await cache.match(api_url_demo)
+        demo_response = await cache.match(demo_cache_key)
         if (demo_response && demo_response.ok) {
             event.waitUntil(postLog("found directly in demo cache, modifying now for " + account_id))
             specific_response = modifyBody(demo_response.clone(),
                 'demo-package-' + account_id,
                 'demo-scenario-' + account_id)
             event.waitUntil(postLog("saving directly in cache"))
-            event.waitUntil(cachePut(api_url, specific_response, event))
+            event.waitUntil(cachePut(specific_cache_key, specific_response, event))
             return specific_response
         }
     }
@@ -41,10 +42,10 @@ export async function getAccount(event) {
     event.waitUntil(postLog("doing live api get"))
     specific_response = await fetch(api_url)
     event.waitUntil(postLog("saving as specific"))
-    await cachePut(api_url, specific_response.clone(), event)
+    await cachePut(specific_cache_key, specific_response.clone(), event)
     if (is_demo) {
         event.waitUntil(postLog("saving as demo"))
-        await cachePut(api_url_demo, specific_response.clone(), event)
+        await cachePut(demo_cache_key, specific_response.clone(), event)
     }
     return specific_response
 
@@ -78,11 +79,12 @@ export async function getPackage(event) {
     package_id = getIdFromUrl(event)
 
     var api_url = 'https://unpaywall-jump-api.herokuapp.com/package/' + package_id + '?jwt=' + encodedToken
-    var api_url_demo = 'https://unpaywall-jump-api.herokuapp.com/package/demo-package-DEMO'
+    var specific_cache_key = 'http://example.com/package/' + package_id
+    var demo_cache_key = 'http://example.com/package/DEMO'
 
     // await cache.delete(api_url) // uncomment to test
 
-    specific_response = await cache.match(api_url)
+    specific_response = await cache.match(specific_cache_key)
     if (specific_response && specific_response.ok) {
         specific_response = modifyBody(specific_response.clone())
         event.waitUntil(postLog("found directly in cache "))
@@ -91,7 +93,7 @@ export async function getPackage(event) {
     event.waitUntil(postLog("NOT found directly in cache"))
 
     if (is_demo) {
-        demo_response = await cache.match(api_url_demo)
+        demo_response = await cache.match(demo_cache_key)
         if (demo_response && demo_response.ok) {
             event.waitUntil(postLog("found directly in demo cache, modifying now"))
             var scenario_id = package_id.replace('package', 'scenario')
@@ -99,7 +101,7 @@ export async function getPackage(event) {
                 package_id,
                 scenario_id)
             event.waitUntil(postLog("saving directly in cache"))
-            event.waitUntil(cachePut(api_url, specific_response, event))
+            event.waitUntil(cachePut(specific_cache_key, specific_response, event))
             return specific_response
         }
     }
@@ -107,10 +109,10 @@ export async function getPackage(event) {
     event.waitUntil(postLog("doing live api get"))
     specific_response = await fetch(api_url)
     event.waitUntil(postLog("saving as specific"))
-    await cachePut(api_url, specific_response.clone(), event)
+    await cachePut(specific_cache_key, specific_response.clone(), event)
     if (is_demo) {
         event.waitUntil(postLog("saving as demo"))
-        await cachePut(api_url_demo, specific_response.clone(), event)
+        await cachePut(demo_cache_key, specific_response.clone(), event)
     }
     return specific_response
 
@@ -141,12 +143,13 @@ export async function getScenario(event) {
     scenario_id = getIdFromUrl(event)
 
     var api_url = 'https://unpaywall-jump-api.herokuapp.com/scenario/' + scenario_id + scenario_path_end + '?jwt=' + encodedToken
-    var api_url_demo = 'https://unpaywall-jump-api.herokuapp.com/scenario/demo-scenario-DEMO' + scenario_path_end
+    var specific_cache_key = 'http://example.com/scenario/' + scenario_id + scenario_path_end
+    var demo_cache_key = 'http://example.com/scenario/DEMO' + scenario_path_end
 
-    event.waitUntil(postLog("looking up specific at: " + api_url))
+    event.waitUntil(postLog("looking up specific at: " + specific_cache_key))
     // await cache.delete(api_url) // uncomment to test
 
-    specific_response = await cache.match(api_url)
+    specific_response = await cache.match(specific_cache_key)
     if (specific_response && specific_response.ok) {
         specific_response = modifyBody(specific_response.clone())
         event.waitUntil(postLog("found directly in cache "))
@@ -155,8 +158,8 @@ export async function getScenario(event) {
     event.waitUntil(postLog("NOT found directly in cache"))
 
     if (is_demo) {
-        event.waitUntil(postLog("checking if have demo response " + api_url_demo))
-        demo_response = await cache.match(api_url_demo)
+        event.waitUntil(postLog("checking if have demo response " + demo_cache_key))
+        demo_response = await cache.match(demo_cache_key)
         if (demo_response && demo_response.ok) {
             event.waitUntil(postLog("YES have demo response"))
             event.waitUntil(postLog("found directly in demo cache, modifying now"))
@@ -165,7 +168,7 @@ export async function getScenario(event) {
                 package_id,
                 scenario_id)
             event.waitUntil(postLog("saving directly in cache"))
-            event.waitUntil(cachePut(api_url, specific_response, event))
+            event.waitUntil(cachePut(specific_cache_key, specific_response, event))
             return specific_response
         } else {
             event.waitUntil(postLog("NO demo response"))
@@ -174,11 +177,11 @@ export async function getScenario(event) {
 
     event.waitUntil(postLog("doing live api get"))
     specific_response = await fetch(api_url)
-    event.waitUntil(postLog("saving as specific at: " + api_url))
-    await cachePut(api_url, specific_response.clone(), event)
+    event.waitUntil(postLog("saving as specific at: " + specific_cache_key))
+    await cachePut(specific_cache_key, specific_response.clone(), event)
     if (is_demo) {
         event.waitUntil(postLog("saving as demo"))
-        await cachePut(api_url_demo, specific_response.clone(), event)
+        await cachePut(demo_cache_key, specific_response.clone(), event)
     }
 
     return specific_response
