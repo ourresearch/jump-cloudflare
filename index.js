@@ -55,12 +55,12 @@ async function handleGetEvent(event) {
     } else if (cache_url_fragment.includes('/package/')) {
         event.waitUntil(postLog("called with /package"))
         return await getPackage(event)
-    } else if (cache_url_fragment.includes('/scenario/')) {
+    } else if (cache_url_fragment.includes('/scenario/') && !cache_url_fragment.includes('/journal/')) {
         event.waitUntil(postLog("called with /scenario"))
         return await getScenario(event)
-    } else if (cache_url_fragment.includes('/journal/')) {
-        event.waitUntil(postLog("called with /journal"))
-        return await getJournal(event)
+    // } else if (cache_url_fragment.includes('/journal/')) {
+    //     event.waitUntil(postLog("called with /journal"))
+    //     return await getJournal(event)
     } else if (cache_url_fragment === '/purge') {
         event.waitUntil(postLog("called with /purge"))
         var result = await purgeCache(['cloudflare_workers'])
