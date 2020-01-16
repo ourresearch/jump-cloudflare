@@ -1,6 +1,8 @@
 import {errorLog} from './sentry'
 import {getAccount} from './mycache'
 import {getPackage} from './mycache'
+import {getScenario} from './mycache'
+import {getJournal} from './mycache'
 import {isValidJwt} from './jwt'
 import {getJwt} from './jwt'
 import {decodeJwt} from './jwt'
@@ -28,7 +30,8 @@ async function handleEventWithErrorHandling(event) {
             return handlePostEvent(event)
         }
     } catch (e) {
-        event.waitUntil(postLog("**ERROR**" + e.message))
+        event.waitUntil(postLog("**ERROR**"))
+        event.waitUntil(postLog(e.message))
         event.waitUntil(errorLog(e, event.request))
         return new Response(e.message || 'An error occurred!', {status: e.statusCode || 500})
     }
@@ -49,9 +52,15 @@ async function handleGetEvent(event) {
     if (cache_url_fragment === '/account') {
         event.waitUntil(postLog("called with /account"))
         return await getAccount(event)
-    } else if (cache_url_fragment === '/package') {
+    } else if (cache_url_fragment.includes('/package/')) {
         event.waitUntil(postLog("called with /package"))
         return await getPackage(event)
+    } else if (cache_url_fragment.includes('/scenario/')) {
+        event.waitUntil(postLog("called with /scenario"))
+        return await getScenario(event)
+    } else if (cache_url_fragment.includes('/journal/')) {
+        event.waitUntil(postLog("called with /journal"))
+        return await getJournal(event)
     } else if (cache_url_fragment === '/purge') {
         event.waitUntil(postLog("called with /purge"))
         var result = await purgeCache(['cloudflare_workers'])
