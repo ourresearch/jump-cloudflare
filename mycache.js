@@ -15,66 +15,31 @@ export async function getAccount(event) {
 
     // await cache.delete(api_url) // uncomment to test
 
-
-    var cache_response = await cache.match(api_url_demo)
-    if (cache_response) {
-        return cache_response
+    specific_response = await cache.match(api_url)
+    if (specific_response && specific_response.ok) {
+        specific_response = modifyBody(specific_response.clone(), identity.login_uuid)
+        event.waitUntil(postLog("found directly in cache " + specific_response.ok))
+        return await specific_response
     }
-    specific_response = await fetch(api_url)
-    return specific_response
+    event.waitUntil(postLog("NOT found directly in cache"))
 
-    // specific_response = await cache.match(api_url)
-    // if (specific_response && specific_response.ok) {
-    //     event.waitUntil(postLog("found directly in cache " + specific_response.ok))
-    //     return await specific_response
-    // }
-    // event.waitUntil(postLog("NOT found directly in cache"))
-
-    // demo_response = await cache.match(api_url_demo)
-    // if (demo_response && demo_response.ok) {
-    //     event.waitUntil(postLog("found directly in demo cache, modifying now for " + identity.login_uuid))
-    //     specific_response = modifyBody(demo_response, identity.login_uuid)
-    //     event.waitUntil(postLog("saving directly in cache"))
-    //     event.waitUntil(cachePut(api_url, specific_response, event))
-    //     // return await specific_response
-    //     return demo_response
-    // } else {
-    //     event.waitUntil(postLog("doing live api get"))
-    //     specific_response = await fetch(api_url)
-    //     event.waitUntil(postLog("saving as specific"))
-    //     await cachePut(api_url, specific_response, event)
-    //     var demo_response = modifyBody(specific_response, "DEMO")
-    //     event.waitUntil(postLog("saving as demo"))
-    //     await cachePut(api_url_demo, demo_response, event)
-    //     return specific_response
-    //     // return demo_response
-    // }
-
-
-    // await cache.delete(api_url_demo)
-
-    // event.waitUntil(postLog("doing live api get"))
-
-    // specific_response = await fetch(api_url)
-
-    // event.waitUntil(postLog("saving as specific"))
-    // await cachePut(api_url, specific_response, event)
-
-    // demo_response = await modifyBody(specific_response, "DEMO")
-
-
-    // event.waitUntil(postLog("saving as demo"))
-    // await cachePut(api_url_demo, demo_response.clone(), event)
-
-    // await cache.put(api_url_demo, demo_response.clone())
-
-    var cache_response = await cache.match(api_url_demo)
-    if (cache_response) {
-        return cache_response
+    demo_response = await cache.match(api_url_demo)
+    if (demo_response && demo_response.ok) {
+        event.waitUntil(postLog("found directly in demo cache, modifying now for " + identity.login_uuid))
+        specific_response = modifyBody(demo_response.clone(), identity.login_uuid)
+        event.waitUntil(postLog("saving directly in cache"))
+        event.waitUntil(cachePut(api_url, specific_response, event))
+        return specific_response
+    } else {
+        event.waitUntil(postLog("doing live api get"))
+        specific_response = await fetch(api_url)
+        event.waitUntil(postLog("saving as specific"))
+        await cachePut(api_url, specific_response.clone(), event)
+        // demo_response = modifyBody(specific_response, "DEMO")
+        event.waitUntil(postLog("saving as demo"))
+        await cachePut(api_url_demo, specific_response.clone(), event)
+        return specific_response
     }
-    specific_response = await fetch(api_url)
-    return specific_response
-
 }
 
 
@@ -95,10 +60,13 @@ export async function modifyBody(response, specific_id) {
 
 
 export async function cachePut(key, response_clone, event) {
+    var cache = caches.default
+
     if (response_clone.status != 200) {
         event.waitUntil(cache.delete(key))
         return response_clone
     }
+
 
     var cache = caches.default
     var response = new Response(response_clone.body, response_clone)

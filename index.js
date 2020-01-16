@@ -1,5 +1,6 @@
 import {errorLog} from './sentry'
 import {getAccount} from './mycache'
+import {getPackage} from './mycache'
 import {isValidJwt} from './jwt'
 import {getJwt} from './jwt'
 import {decodeJwt} from './jwt'
@@ -39,13 +40,18 @@ async function handleGetEvent(event) {
     let request_url = new URL(event.request.url)
     let cache_url_fragment = request_url.pathname.replace('/cache', '')
     let isValid = await isValidJwt(event.request)
-    if (!isValid) {
-        return new Response('Invalid JWT', {status: 403})
+    if (cache_url_fragment != '/purge') {
+        if (!isValid) {
+            return new Response('Invalid JWT', {status: 403})
+        }
     }
 
     if (cache_url_fragment === '/account') {
         event.waitUntil(postLog("called with /account"))
         return await getAccount(event)
+    } else if (cache_url_fragment === '/package') {
+        event.waitUntil(postLog("called with /package"))
+        return await getPackage(event)
     } else if (cache_url_fragment === '/purge') {
         event.waitUntil(postLog("called with /purge"))
         var result = await purgeCache(['cloudflare_workers'])
@@ -71,7 +77,7 @@ async function handlePostEvent(event) {
         }
     }
 
-    let data = await request.json()
+    let data = await event.request.json()
     let encodedToken = getJwt(event.request)
     let api_url = 'https://unpaywall-jump-api.herokuapp.com'
         + cache_url_fragment
