@@ -56,11 +56,9 @@ export async function getAccount(event) {
 
 
     // event.waitUntil(postLog("saving as demo"))
-    // await cachePut(api_url_demo, demo_response, event)
+    await cachePut(api_url_demo, demo_response.clone(), event)
 
-    await cache.put(api_url_demo, demo_response.clone())
-
-    // var result = await cache.put(api_url_demo, demo_response.clone())
+    // await cache.put(api_url_demo, demo_response.clone())
 
     var cache_response = await cache.match(api_url_demo)
     if (cache_response) {
@@ -97,8 +95,8 @@ export async function cachePut(key, response_orig, event) {
     // var response_clone = await response_orig
     // console.log("response_clone", response_clone)
     //
-    await cache.put(key, response_orig.clone())
-    return response_clone
+    await cache.put(key, response_orig)
+    return response_orig
     //
     // var newResponseHeaders = new Headers(response_clone.headers)
     // newResponseHeaders.set('Cache-Tag', 'cloudflare_workers')
